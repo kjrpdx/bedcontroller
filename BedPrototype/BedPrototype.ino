@@ -8,17 +8,20 @@ LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, BACKLIGHT_PIN, POSITIVE );
 
 #define DEBUG false
 #define DEBOUNCE 100 // milliseconds
-#define TIMEOUT 30000
+#define TIMEOUT 30000  // 30 seconds
 #define ON_PRESS HIGH
 #define ON_RELEASE LOW
 #define RELAY_OPEN HIGH
 #define RELAY_CLOSED LOW
-#define NUM_PINS 10
+#define KEY_PIN 43
+#define NUM_PINS 11
 #define NUM_PAGES 7
 
-#define BTN_SCROLL 10
+#define BTN_SCROLL 10  // input pins
 #define BTN_UP 11
 #define BTN_DOWN 12
+#define UP_NUM 0
+#define DOWN_NUM 1
 
 EvtManager mgr;
 int currentPage = 0;
@@ -36,13 +39,14 @@ String bedControls[NUM_PINS] =
   "Foot Extend",        // 6
   "Foot Retract",       // 7
   "Trendelenburg",      // 8
-  "Rev. Trendelenburg"  // 9
+  "Rev. Trendelenburg", // 9
+  "Unlock"              // 10   
 };
 
 int relayPinNumbers[NUM_PINS] =  // Enter actual pin #s to match above bed control order
 {
   //  22, 24, 26, 28, 30, 32, 34, 36, 38, 40
-  23, 25, 27, 29, 31, 33, 35, 37, 39, 41
+  23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43
   //  0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 };
 
@@ -78,9 +82,9 @@ void displayPage()
 {
   lcd.home();
   lcd.clear();
-  lcd.print(getBtnUpDescription());
+  lcd.print(getBtnDescription(UP_NUM));
   lcd.setCursor ( 0, 1 );        // go to the next line
-  lcd.print(getBtnDownDescription());
+  lcd.print(getBtnDescription(DOWN_NUM));
   delay(50); // give LCD time to finish displaying text
   startTimeout();
 };
@@ -138,35 +142,33 @@ void scrollReleased() {
 void upPressed() {
   mgr.resetContext();
   addReleaseBtnUpListener();
-  //  Just ignore other button presses?
-  //  mgr.addListener(new EvtPinListener(BTN_SCROLL, (EvtAction)sleep));
-  //  mgr.addListener(new EvtPinListener(BTN_DOWN, (EvtAction)sleep));
-  // turn on appropriate relay
-  // *** HERE! ***
-  lcd.clear();
-  lcd.print(String(btnUpPinNum()) + "-up pressed");
-  lcd.setCursor ( 0, 1 );    
-  lcd.print(getBtnUpDescription());
-  digitalWrite(btnUpPinNum(), RELAY_CLOSED);
-  startTimeout();
+  pressButton(UP_NUM);
 };
 
 void downPressed() {
   mgr.resetContext();
   addReleaseBtnDownListener();
-  //  Just ignore other button presses?
-  //  mgr.addListener(new EvtPinListener(BTN_SCROLL, (EvtAction)sleep));
-  //  mgr.addListener(new EvtPinListener(BTN_UP, (EvtAction)sleep));
-  // turn on appropriate relay
-  // *** HERE! ***
+  pressButton(DOWN_NUM);
+};
+
+void pressButton(int btnNum) {
+  int pin = btnPinNum(btnNum);
   lcd.clear();
-  lcd.print(String(btnDownPinNum()) + "-down pressed");
-  lcd.setCursor ( 0, 1 );    
-  lcd.print(getBtnDownDescription());
-  digitalWrite(btnDownPinNum(), RELAY_CLOSED);
+  lcd.print(String(pin) + "-" + getBtnDescription(btnNum));
+  lcd.setCursor ( 0, 1 );
+  lcd.print(" pressed");
+  unlockBedControl();
+  digitalWrite(pin, RELAY_CLOSED);
   startTimeout();
 };
 
+// Press the unlock button
+void unlockBedControl() { 
+  digitalWrite(KEY_PIN, RELAY_CLOSED);
+  delay(250);
+  digitalWrite(KEY_PIN, RELAY_OPEN);
+};
+  
 void upReleased() {
   openAllRelays(); // should I just open the one relay?
   //    digitalWrite(relayPinNumbers[btnUpPinNum()], LOW);
@@ -180,31 +182,33 @@ void downReleased() {
 };
 
 void openAllRelays() {
-  // set every relay to low
+  // set every relay to open
   for (int i = 0; i < NUM_PINS; i++) {
-    // Open each relay accessible in relayPinNumbers[]
-    // *** HERE! ***
     digitalWrite(relayPinNumbers[i], RELAY_OPEN);
   }
 };
 
-String getBtnUpDescription() {
-  // return String(btnUpPinNum()) + "-" + bedControls[pages[currentPage][0]];
-  return bedControls[pages[currentPage][0]];
+String getBtnDescription(int num) {
+  // return String(btnPinNum(num)) + "-" + bedControls[pages[currentPage][num]];
+  return bedControls[pages[currentPage][num]];
+};
+
+int btnPinNum(int num) {
+  return relayPinNumbers[pages[currentPage][num]];
+};
+
+/*
+ String getBtnUpDescription() {
+  return String(btnPinNum(0)) + "-" + bedControls[pages[currentPage][0]];
+  // return bedControls[pages[currentPage][0]];
 };
 
 String getBtnDownDescription() {
-  // return String(btnDownPinNum()) + "-" + bedControls[pages[currentPage][1]];
-  return bedControls[pages[currentPage][1]];
+  return String(btnPinNum(1)) + "-" + bedControls[pages[currentPage][1]];
+  // return bedControls[pages[currentPage][1]];
 };
+*/
 
-String longBtnUpDescription() {
-  return String(btnUpPinNum()) + "-" + bedControls[pages[currentPage][0]];
-};
-
-String longBtnDownDescription() {
-  return String(btnDownPinNum()) + "-" + bedControls[pages[currentPage][1]];
-};
 void lightOn() {
   lcd.setBacklightPin( BACKLIGHT_PIN, HIGH );
 }
@@ -246,13 +250,6 @@ void addReleaseBtnDownListener() {
 void debugAddNextPageTimer() {
   if (DEBUG == true)
     mgr.addListener(new EvtTimeListener(1500, false, (EvtAction)nextPage));
-};
-
-int btnUpPinNum() {
-  return relayPinNumbers[pages[currentPage][0]];
-};
-int btnDownPinNum() {
-  return relayPinNumbers[pages[currentPage][1]];
 };
 
 USE_EVENTUALLY_LOOP(mgr);
