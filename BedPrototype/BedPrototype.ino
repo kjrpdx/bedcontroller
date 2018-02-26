@@ -8,27 +8,28 @@ LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, BACKLIGHT_PIN, POSITIVE );
 
 #define DEBUG false
 #define DEBOUNCE 100 // milliseconds
-#define TIMEOUT 30000  // 30 seconds
+#define TIMEOUT 30000  // 30 seconds before I go to sleep
 #define ON_PRESS HIGH
 #define ON_RELEASE LOW
 #define RELAY_OPEN HIGH
 #define RELAY_CLOSED LOW
-#define KEY_PIN 43
 #define NUM_PINS 11
 #define NUM_PAGES 7
 
-#define BTN_SCROLL 10  // input pins
-#define BTN_UP 11
-#define BTN_DOWN 12
-#define UP_NUM 0
-#define DOWN_NUM 1
+#define SCROLL_PIN 10  // input pins
+#define UP_PIN 11
+#define DOWN_PIN 12
+#define UNLOCK_PIN 43  // Close momentarily before other relays
 
-EvtManager mgr;
-int currentPage = 0;
-bool isAwake = false;
-bool btnPressed = false;
+#define UP_NUM 0    // Numbers for Up and Down buttons
+#define DOWN_NUM 1  // which correspond to lines of display
 
-String bedControls[NUM_PINS] =
+EvtManager mgr;         // using the "Eventually" framework
+int currentPage = 0;     // index of the currently displayed page
+bool isAwake = false;    // if true, can operate bed on input
+bool btnPressed = false; // Has SCROLL_PIN been activated?
+
+String bedControls[NUM_PINS] =  // Names of the bed functions we can activate
 { // index
   "Bed Flat",           // 0
   "Chair",              // 1
@@ -51,7 +52,7 @@ int relayPinNumbers[NUM_PINS] =  // Enter actual pin #s to match above bed contr
 };
 
 int pages[NUM_PAGES][2] =
-{ // tuples of what control to display and activate per page
+{ // tuples of which controls to display and activate per page
   {0, 1}, // bed flat, chair
   {2, 3}, // Head up, down
   {4, 5}, // Knee up, down
@@ -63,9 +64,9 @@ int pages[NUM_PAGES][2] =
 
 void setup()
 {
-  pinMode(BTN_SCROLL, INPUT);
-  pinMode(BTN_UP, INPUT);
-  pinMode(BTN_DOWN, INPUT);
+  pinMode(SCROLL_PIN, INPUT);
+  pinMode(UP_PIN, INPUT);
+  pinMode(DOWN_PIN, INPUT);
 
   for (int i = 0; i < NUM_PINS; i++) {
     pinMode(relayPinNumbers[i], OUTPUT);
@@ -159,25 +160,18 @@ void pressButton(int btnNum) {
   lcd.print(" pressed");
   unlockBedControl();
   digitalWrite(pin, RELAY_CLOSED);
-  startTimeout();
+  startTimeout();  // Go to sleep if pressed too long
 };
 
-// Press the unlock button
+// Press the unlock button for a bit, then release
 void unlockBedControl() { 
-  digitalWrite(KEY_PIN, RELAY_CLOSED);
+  digitalWrite(UNLOCK_PIN, RELAY_CLOSED);
   delay(250);
-  digitalWrite(KEY_PIN, RELAY_OPEN);
-};
-  
-void upReleased() {
-  openAllRelays(); // should I just open the one relay?
-  //    digitalWrite(relayPinNumbers[btnUpPinNum()], LOW);
-  wakeUp();
+  digitalWrite(UNLOCK_PIN, RELAY_OPEN);
 };
 
-void downReleased() {
-  openAllRelays(); // should I just open the one relay?
-  //    digitalWrite(relayPinNumbers[btnDownPinNum()], LOW);
+void upDownReleased() {
+  openAllRelays(); 
   wakeUp();
 };
 
@@ -188,26 +182,14 @@ void openAllRelays() {
   }
 };
 
-String getBtnDescription(int num) {
-  // return String(btnPinNum(num)) + "-" + bedControls[pages[currentPage][num]];
-  return bedControls[pages[currentPage][num]];
+String getBtnDescription(int btnNum) {
+  // return String(btnPinNum(btnNum)) + "-" + bedControls[pages[currentPage][btnNum]];
+  return bedControls[pages[currentPage][btnNum]];
 };
 
-int btnPinNum(int num) {
-  return relayPinNumbers[pages[currentPage][num]];
+int btnPinNum(int btnNum) {
+  return relayPinNumbers[pages[currentPage][btnNum]];
 };
-
-/*
- String getBtnUpDescription() {
-  return String(btnPinNum(0)) + "-" + bedControls[pages[currentPage][0]];
-  // return bedControls[pages[currentPage][0]];
-};
-
-String getBtnDownDescription() {
-  return String(btnPinNum(1)) + "-" + bedControls[pages[currentPage][1]];
-  // return bedControls[pages[currentPage][1]];
-};
-*/
 
 void lightOn() {
   lcd.setBacklightPin( BACKLIGHT_PIN, HIGH );
@@ -223,28 +205,28 @@ void startTimeout() {
 }
 
 void addPressBtnScrollListener() {
-  mgr.addListener(new EvtPinListener(BTN_SCROLL, DEBOUNCE, (EvtAction)scrollPressed, HIGH));
+  mgr.addListener(new EvtPinListener(SCROLL_PIN, DEBOUNCE, (EvtAction)scrollPressed, HIGH));
 };
 
 void addReleaseBtnScrollListener() {
   // Eventually framework has been changed to be able to set target value == LOW, or ON_RELEASE
-  mgr.addListener(new EvtPinListener(BTN_SCROLL, DEBOUNCE, (EvtAction)scrollReleased, LOW));
+  mgr.addListener(new EvtPinListener(SCROLL_PIN, DEBOUNCE, (EvtAction)scrollReleased, LOW));
 };
 
 void addPressBtnUpListener() {
-  mgr.addListener(new EvtPinListener(BTN_UP, DEBOUNCE, (EvtAction)upPressed, HIGH));
+  mgr.addListener(new EvtPinListener(UP_PIN, DEBOUNCE, (EvtAction)upPressed, HIGH));
 };
 
 void addPressBtnDownListener() {
-  mgr.addListener(new EvtPinListener(BTN_DOWN, DEBOUNCE, (EvtAction)downPressed, HIGH));
+  mgr.addListener(new EvtPinListener(DOWN_PIN, DEBOUNCE, (EvtAction)downPressed, HIGH));
 };
 
 void addReleaseBtnUpListener() {
-  mgr.addListener(new EvtPinListener(BTN_UP, DEBOUNCE, (EvtAction)upReleased, LOW));
+  mgr.addListener(new EvtPinListener(UP_PIN, DEBOUNCE, (EvtAction)upDownReleased, LOW));
 };
 
 void addReleaseBtnDownListener() {
-  mgr.addListener(new EvtPinListener(BTN_DOWN, DEBOUNCE, (EvtAction)downReleased, LOW));
+  mgr.addListener(new EvtPinListener(DOWN_PIN, DEBOUNCE, (EvtAction)upDownReleased, LOW));
 };
 
 void debugAddNextPageTimer() {
