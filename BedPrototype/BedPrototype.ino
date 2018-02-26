@@ -59,7 +59,7 @@ int pages[NUM_PAGES][2] =
   {6, 7}, // Foot extend, retract
   {8, 0}, // Trend., flat
   {9, 0}, // Rev. Trend., flat
-  {9, 1}  // Chair, Rev. Trend.
+  {9, 1}  // Rev. Trend., Chair
 };
 
 void setup()
@@ -73,10 +73,9 @@ void setup()
   };
 
   lcd.begin(16, 2);              // initialize the lcd
-  displayPage();
-  debugAddNextPageTimer();
-  addPressBtnScrollListener();
   openAllRelays();
+  wakeUp();  // this is more consistent, I think, to be fully working on bootup
+
 }
 
 void displayPage()
@@ -114,7 +113,6 @@ void nextPage() {
   if (currentPage >= NUM_PAGES)
     currentPage = 0;
   wakeUp();
-  debugAddNextPageTimer();
 };
 
 void scrollPressed() {
@@ -205,33 +203,28 @@ void startTimeout() {
 }
 
 void addPressBtnScrollListener() {
-  mgr.addListener(new EvtPinListener(SCROLL_PIN, DEBOUNCE, (EvtAction)scrollPressed, HIGH));
+  mgr.addListener(new EvtPinListener(SCROLL_PIN, DEBOUNCE, (EvtAction)scrollPressed, ON_PRESS));
 };
 
 void addReleaseBtnScrollListener() {
   // Eventually framework has been changed to be able to set target value == LOW, or ON_RELEASE
-  mgr.addListener(new EvtPinListener(SCROLL_PIN, DEBOUNCE, (EvtAction)scrollReleased, LOW));
+  mgr.addListener(new EvtPinListener(SCROLL_PIN, DEBOUNCE, (EvtAction)scrollReleased, ON_RELEASE));
 };
 
 void addPressBtnUpListener() {
-  mgr.addListener(new EvtPinListener(UP_PIN, DEBOUNCE, (EvtAction)upPressed, HIGH));
+  mgr.addListener(new EvtPinListener(UP_PIN, DEBOUNCE, (EvtAction)upPressed, ON_PRESS));
 };
 
 void addPressBtnDownListener() {
-  mgr.addListener(new EvtPinListener(DOWN_PIN, DEBOUNCE, (EvtAction)downPressed, HIGH));
+  mgr.addListener(new EvtPinListener(DOWN_PIN, DEBOUNCE, (EvtAction)downPressed, ON_PRESS));
 };
 
 void addReleaseBtnUpListener() {
-  mgr.addListener(new EvtPinListener(UP_PIN, DEBOUNCE, (EvtAction)upDownReleased, LOW));
+  mgr.addListener(new EvtPinListener(UP_PIN, DEBOUNCE, (EvtAction)upDownReleased, ON_RELEASE));
 };
 
 void addReleaseBtnDownListener() {
-  mgr.addListener(new EvtPinListener(DOWN_PIN, DEBOUNCE, (EvtAction)upDownReleased, LOW));
-};
-
-void debugAddNextPageTimer() {
-  if (DEBUG == true)
-    mgr.addListener(new EvtTimeListener(1500, false, (EvtAction)nextPage));
+  mgr.addListener(new EvtPinListener(DOWN_PIN, DEBOUNCE, (EvtAction)upDownReleased, ON_RELEASE));
 };
 
 USE_EVENTUALLY_LOOP(mgr);
