@@ -16,10 +16,10 @@ LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, BACKLIGHT_PIN, POSITIVE );
 #define NUM_PINS 11
 #define NUM_PAGES 7
 
-#define SCROLL_PIN 10  // input pins
-#define UP_PIN 11
-#define DOWN_PIN 12
-#define UNLOCK_PIN 43  // Close momentarily before other relays
+#define SCROLL_PIN 11  // input pins
+#define UP_PIN 12
+#define DOWN_PIN 13
+#define UNLOCK_PIN 10  // Close momentarily before other relays
 
 #define UP_NUM 0    // Numbers for Up and Down buttons
 #define DOWN_NUM 1  // which correspond to lines of display
@@ -47,8 +47,8 @@ String bedControls[NUM_PINS] =  // Names of the bed functions we can activate
 int relayPinNumbers[NUM_PINS] =  // Enter actual pin #s to match above bed control order
 {
   //  22, 24, 26, 28, 30, 32, 34, 36, 38, 40
-  23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43
-  //  0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+  // 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 };
 
 int pages[NUM_PAGES][2] =
